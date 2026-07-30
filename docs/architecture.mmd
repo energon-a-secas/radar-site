@@ -1,0 +1,50 @@
+---
+config:
+  theme: base
+  themeVariables:
+    primaryColor: "#0f172a"
+    primaryTextColor: "#e2e8f0"
+    primaryBorderColor: "#0063e5"
+    lineColor: "#38bdf8"
+    secondaryColor: "#1e293b"
+    tertiaryColor: "#1e293b"
+    clusterBkg: "#f0f7ff"
+    clusterBorder: "#bfdbfe"
+    edgeLabelBackground: "#e8f0ff"
+    mainBkg: "#0f172a"
+    nodeBorder: "#0063e5"
+    titleColor: "#1e1b4b"
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif"
+    fontSize: "13px"
+---
+flowchart TB
+    User([User]) --> HTML["index.html\nApp shell"]
+
+    subgraph Frontend["Frontend (ES Modules)"]
+        HTML --> app["app.js\nEntry point"]
+        app --> state["state.js\nData slices + prefs"]
+        app --> sync["sync.js\nConcurrent fetch cycle"]
+        app --> events["events.js\nControls + keyboard + auto-refresh"]
+        sync --> api["api.js\nData layer"]
+        sync --> render["render.js\nPosture + panel paint"]
+        render --> quakes["quakes.js\nSeismic panel + radar"]
+        render --> weather["weather.js\nCurrent + 7-day + AQI"]
+        render --> transport["transport.js\nMetro line board"]
+        render --> feed["feed.js\nAlert stream"]
+        api & render --> utils["utils.js\nformat, distance, escape"]
+        config["config.js\nSantiago consts + scales"] --> api
+    end
+
+    state <-->|"radar-v1"| Storage[("localStorage\nprefs + filter")]
+
+    subgraph Direct["Keyless sources (client-side)"]
+        api -->|"GeoJSON"| USGS["USGS\nM2.5+ within 650 km"]
+        api -->|"forecast"| OM["Open-Meteo\ncurrent + 7-day + air quality"]
+    end
+
+    subgraph CF["Cloudflare Worker (radar-api)"]
+        api -->|"POST /quakes /metro /feed"| Worker["radar-api\nscrape + normalize"]
+        Worker -->|"HTML"| CSN["CSN\nlocal tremors"]
+        Worker -->|"HTML"| Metro["metro.cl\nline status"]
+        Worker -->|"RSS"| Alerts["CSN / SENAPRED / Meteorología\nofficial bulletins"]
+    end

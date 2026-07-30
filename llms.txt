@@ -1,0 +1,11 @@
+# Sitrep
+
+> Santiago de Chile situation board — live earthquakes, weather, air quality, Metro status, and official alerts on one tactical board
+
+- Live: https://sitrep.neorgon.com/
+- Part of the Neorgon tool suite (free, no signup, runs in your browser): https://neorgon.com/
+
+## More Neorgon tools
+
+- [Neorgon hub](https://neorgon.com/): Browse and launch every tool from one page.
+- [Full suite index](https://neorgon.com/llms.txt): Machine-readable list of every Neorgon tool.

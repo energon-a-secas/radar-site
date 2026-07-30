@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Radar | Santiago Situation Board</title>
+  <meta name="description" content="Track live earthquakes felt in Santiago, the week's weather by the hour, and Metro disruptions across Santiago de Chile in one tactical dashboard">
+  <meta property="og:title" content="Radar | Santiago Situation Board">
+  <meta property="og:description" content="Live earthquakes, hourly weather, and Metro status for Santiago de Chile on one tactical board">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://radar.neorgon.com/">
+  <meta property="og:site_name" content="Neorgon">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Radar | Santiago Situation Board">
+  <meta name="twitter:description" content="Live earthquakes, hourly weather, and Metro status for Santiago de Chile">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://radar.neorgon.com/">
+  <meta property="og:locale" content="en_US">
+  <meta name="theme-color" content="#040714">
+  <meta property="og:image" content="https://radar.neorgon.com/og-preview.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:image" content="https://radar.neorgon.com/og-preview.jpg">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Radar",
+    "description": "Live earthquake, weather, and Metro transit watch for Santiago de Chile in one tactical dashboard.",
+    "url": "https://radar.neorgon.com/",
+    "applicationCategory": "UtilitiesApplication",
+    "operatingSystem": "Any",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Neorgon", "url": "https://neorgon.com/" }
+  }
+  </script>
+</head>
+<body>
+
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="header-bar">
+    <div class="header-logo">
+      <a href="https://neorgon.com/" target="_blank" rel="noopener noreferrer">
+        <img src="energon-classic-logo.png" class="header-logo-img" alt="Neorgon logo">
+      </a>
+      <a href="./" class="header-title-link">
+        <h1>Radar</h1>
+        <div class="header-subtitle">Santiago situation board</div>
+      </a>
+    </div>
+
+    <div class="header-clock" aria-hidden="true">
+      <span class="header-clock__time" id="clock">--:--:--</span>
+      <span class="header-clock__zone">Santiago</span>
+    </div>
+
+    <a class="header-home" href="https://neorgon.com/" title="neorgon.com" aria-label="Neorgon home">
+      <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+      </svg>
+    </a>
+  </header>
+
+  <!-- Posture ribbon — the single-glance status readout -->
+  <div class="posture" id="posture" data-level="nominal" role="status" aria-live="polite"></div>
+
+  <main id="main">
+    <div class="board">
+
+      <!-- Command bar -->
+      <div class="command-bar">
+        <div class="command-bar__loc">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          <span>Santiago de Chile</span>
+        </div>
+        <div class="command-bar__actions">
+          <button class="chip-btn" id="unitToggle" type="button" aria-label="Switch temperature unit">°C</button>
+          <button class="chip-btn chip-btn--accent" id="syncBtn" type="button">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v5h-5"/></svg>
+            Sync
+          </button>
+          <span class="sync-stamp" id="syncStamp">not synced</span>
+        </div>
+      </div>
+
+      <!-- Seismic panel (lead) -->
+      <section class="panel panel--seismic" aria-labelledby="quakes-title">
+        <header class="panel__head">
+          <h2 class="panel__title" id="quakes-title">Seismic watch</h2>
+          <div class="panel__tools">
+            <div class="mag-filter" id="magFilter" role="group" aria-label="Minimum magnitude filter">
+              <button class="mag-chip" data-mag="2.5" type="button" aria-pressed="true">2.5+</button>
+              <button class="mag-chip" data-mag="3.5" type="button" aria-pressed="false">3.5+</button>
+              <button class="mag-chip" data-mag="4.5" type="button" aria-pressed="false">4.5+</button>
+              <button class="mag-chip" data-mag="5.5" type="button" aria-pressed="false">5.5+</button>
+            </div>
+            <span class="panel__meta" id="quakes-meta" data-tone="idle"></span>
+          </div>
+        </header>
+        <div class="panel__body" id="quakes-body"></div>
+      </section>
+
+      <!-- Weather panel -->
+      <section class="panel panel--weather" aria-labelledby="weather-title">
+        <header class="panel__head">
+          <h2 class="panel__title" id="weather-title">Weather</h2>
+          <span class="panel__meta" id="weather-meta" data-tone="idle"></span>
+        </header>
+        <div class="panel__body" id="weather-body"></div>
+      </section>
+
+      <!-- Transport panel -->
+      <section class="panel panel--transport" aria-labelledby="transport-title">
+        <header class="panel__head">
+          <h2 class="panel__title" id="transport-title">Metro lines</h2>
+          <span class="panel__meta" id="transport-meta" data-tone="idle"></span>
+        </header>
+        <div class="panel__body" id="transport-body"></div>
+      </section>
+
+      <!-- Alert feed panel -->
+      <section class="panel panel--feed" aria-labelledby="feed-title">
+        <header class="panel__head">
+          <h2 class="panel__title" id="feed-title">Official alerts</h2>
+          <span class="panel__meta" id="feed-meta" data-tone="idle"></span>
+        </header>
+        <div class="panel__body" id="feed-body"></div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="info-footer">
+    Data from USGS, Open-Meteo, and CSN Chile. Situational aid, not an emergency service.<br>
+    Part of <a class="footer-link" href="https://neorgon.com/">Neorgon</a>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

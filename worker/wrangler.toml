@@ -1,0 +1,13 @@
+name = "radar-api"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# This Worker holds no secrets by default — all upstreams (CSN, metro.cl,
+# SENAPRED) are public. If you later add a token-bearing source, set it with:
+#   npx wrangler secret put SOURCE_TOKEN
+#
+# Optional: cache upstream responses at the edge to stay polite to the
+# public feeds. Uncomment to enable a KV cache.
+# [[kv_namespaces]]
+# binding = "CACHE"
+# id = "REPLACE_WITH_KV_ID"
