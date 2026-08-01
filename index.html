@@ -23,6 +23,12 @@
   <meta name="twitter:image" content="https://radar.neorgon.com/og-preview.jpg">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="stylesheet" href="css/style.css">
+  <!-- Neorgon Header Kit (vendored; ?header=live swaps CSS to CDN) -->
+  <script>(function(){var m=location.search.match(/[?&]theme=([\w-]+)/)||document.cookie.match(/(?:^|;\s*)neo_theme=([\w-]+)/);if(m&&m[1]!=='default')document.documentElement.dataset.theme=decodeURIComponent(m[1]);})();</script>
+  <link rel="stylesheet" href="css/neorgon-header.css">
+  <link rel="stylesheet" href="css/neorgon-themes.css">
+  <link rel="stylesheet" href="https://pub-b597cd281a384f98a47e1f043a6c4160.r2.dev/v1.0.0/header/season.css">
+  <script defer src="js/neorgon-header.js"></script>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -41,7 +47,7 @@
 
   <a class="skip-link" href="#main">Skip to content</a>
 
-  <header class="header-bar">
+  <header class="header-bar" data-header-mode="app">
     <div class="header-logo">
       <a href="https://neorgon.com/" target="_blank" rel="noopener noreferrer">
         <img src="energon-classic-logo.png" class="header-logo-img" alt="Neorgon logo">
@@ -52,16 +58,17 @@
       </a>
     </div>
 
-    <div class="header-clock" aria-hidden="true">
-      <span class="header-clock__time" id="clock">--:--:--</span>
-      <span class="header-clock__zone">Santiago</span>
+    <div class="header-right">
+      <div class="header-clock" aria-hidden="true">
+        <span class="header-clock__time" id="clock">--:--:--</span>
+        <span class="header-clock__zone">Santiago</span>
+      </div>
+      <a class="header-home" href="https://neorgon.com/" title="neorgon.com" aria-label="Neorgon home">
+        <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+        </svg>
+      </a>
     </div>
-
-    <a class="header-home" href="https://neorgon.com/" title="neorgon.com" aria-label="Neorgon home">
-      <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-      </svg>
-    </a>
   </header>
 
   <!-- Posture ribbon — the single-glance status readout -->
