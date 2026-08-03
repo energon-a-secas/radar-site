@@ -62,7 +62,13 @@ function renderAqiGauge(air) {
         <span class="wx-aqi__val" style="color:${band.color}">${aqi} <em>${escHtml(band.label)}</em></span>
       </div>
       <div class="wx-aqi__track" style="background:${gradient}">
-        <span class="wx-aqi__marker" style="left:${pct}%"></span>
+        ${[50, 100, 150, 200].map((v) =>
+          `<span class="wx-aqi__tick" style="left:${(v / max) * 100}%"></span>`).join('')}
+        <span class="wx-aqi__marker" style="left:${pct}%;--aqi:${band.color}"></span>
+      </div>
+      <div class="wx-aqi__scale" aria-hidden="true">
+        ${[50, 100, 150, 200].map((v) =>
+          `<span style="left:${(v / max) * 100}%">${v}</span>`).join('')}
       </div>
       <div class="wx-aqi__foot">
         <span>0</span>${pm}<span>300+</span>
@@ -216,18 +222,36 @@ function renderCurrent(cur, hourly) {
 
 function renderForecast(daily) {
   if (!daily.length) return '';
+  const unit = state.prefs.tempUnit;
+  const conv = (c) => (unit === 'F' ? (c * 9) / 5 + 32 : c);
+
+  // One temperature envelope across the whole week. Each day's bar is a
+  // slice of it, so the seven columns read as a single trend line rather
+  // than fourteen unrelated numbers.
+  const floor = Math.min(...daily.map((d) => conv(d.min)));
+  const ceil = Math.max(...daily.map((d) => conv(d.max)));
+  const span = Math.max(1, ceil - floor);
+
   return `
     <div class="wx-week" role="list" aria-label="Seven day forecast">
       ${daily.map((d) => {
         const wc = weatherCode(d.code);
-        const unit = state.prefs.tempUnit;
         const today = isToday(d.date);
         const pop = d.pop ?? 0;
+        const hi = conv(d.max);
+        const lo = conv(d.min);
+        const top = ((ceil - hi) / span) * 100;
+        const height = Math.max(4, ((hi - lo) / span) * 100);
+        // Warmth of the day's midpoint within the week, as a mix ratio.
+        const warmth = (((hi + lo) / 2 - floor) / span) * 100;
         return `
           <div class="wx-day${today ? ' wx-day--today' : ''}" role="listitem">
             <span class="wx-day__name">${today ? 'Today' : weekday(d.date)}</span>
             <span class="wx-day__glyph">${glyph(wc.icon, 26)}</span>
             <span class="wx-day__hi">${fmtTemp(d.max, unit)}</span>
+            <span class="wx-day__bar" aria-hidden="true">
+              <span class="wx-day__range" style="top:${top.toFixed(1)}%;height:${height.toFixed(1)}%;--warmth:${warmth.toFixed(0)}%"></span>
+            </span>
             <span class="wx-day__lo">${fmtTemp(d.min, unit)}</span>
             <span class="wx-day__pop${pop >= 40 ? ' is-wet' : ''}" title="Chance of precipitation">${pop}%</span>
           </div>

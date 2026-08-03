@@ -133,13 +133,18 @@ function renderInsight(list) {
   const stats = [
     { k: 'in range', v: String(list.length) },
     nearest && { k: 'nearest', v: `${nearest.km} km` },
-    strongest && { k: 'strongest', v: `M${strongest.mag.toFixed(1)}` },
+    // The peak figure carries its own severity colour — the one number
+    // here that means something different at M3 than at M6.
+    strongest && { k: 'strongest', v: `M${strongest.mag.toFixed(1)}`, tone: magBand(strongest.mag).color },
     { k: 'last 24h', v: String(day) },
   ].filter(Boolean);
 
   return `
     <dl class="insight" aria-label="Seismic summary">
-      ${stats.map((s) => `<div><dt>${s.k}</dt><dd>${escHtml(s.v)}</dd></div>`).join('')}
+      ${stats.map((s) => `
+        <div${s.tone ? ` class="insight--toned" style="--tile:${s.tone}"` : ''}>
+          <dt>${s.k}</dt><dd>${escHtml(s.v)}</dd>
+        </div>`).join('')}
     </dl>
   `;
 }

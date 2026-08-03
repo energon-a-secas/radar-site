@@ -55,8 +55,8 @@ function renderItem(item) {
     : `<span class="feed-item__title">${escHtml(item.title)}</span>`;
   const when = item.time ? timeAgo(item.time) : '';
   return `
-    <li class="feed-item">
-      <span class="feed-tag feed-tag--${tone}">${escHtml(item.source || 'Alert')}</span>
+    <li class="feed-item feed-item--${tone}">
+      <span class="feed-tag">${escHtml(item.source || 'Alert')}</span>
       <span class="feed-item__body">
         ${link}
         ${item.summary ? `<span class="feed-item__summary">${escHtml(item.summary)}</span>` : ''}
