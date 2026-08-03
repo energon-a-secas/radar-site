@@ -197,7 +197,7 @@ function renderCurrent(cur, hourly) {
     : '';
 
   return `
-    <div class="wx-now">
+    <div class="wx-now" data-wx="${wc.icon}">
       <div class="wx-now__glyph">${glyph(wc.icon, 56)}</div>
       <div class="wx-now__read">
         <span class="wx-now__temp">${fmtTemp(cur.temperature_2m, unit)}${unit}</span>

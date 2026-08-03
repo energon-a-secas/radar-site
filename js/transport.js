@@ -52,9 +52,9 @@ export function renderTransport() {
 function renderLine(l) {
   const st = METRO_STATES[l.state];
   return `
-    <div class="metro-line metro-line--${st.tone}" role="listitem"
+    <div class="metro-line metro-line--${st.tone}" role="listitem" style="--line:${l.color}"
          title="${escHtml(l.name)}: ${st.label}${l.detail ? '. ' + escHtml(l.detail) : ''}">
-      <span class="metro-badge" style="background:${l.color}">${escHtml(l.id)}</span>
+      <span class="metro-badge">${escHtml(l.id)}</span>
       <span class="metro-line__name">${escHtml(l.name)}</span>
       <span class="metro-status metro-status--${st.tone}">
         <span class="metro-dot"></span>${st.label}

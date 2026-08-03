@@ -40,6 +40,10 @@ export function bindEvents() {
     renderPanel('weather');
   });
 
+  // Radar hover card (delegated — the radar is rebuilt on every sync).
+  $('quakes-body')?.addEventListener('pointerover', onRadarPointerOver);
+  $('quakes-body')?.addEventListener('pointerout', onRadarPointerOut);
+
   // Keyboard shortcuts.
   document.addEventListener('keydown', onKeydown);
 
@@ -59,6 +63,42 @@ export function bindEvents() {
 
   // Auto-refresh data.
   setInterval(() => { if (document.visibilityState === 'visible') syncAll(); }, REFRESH_MS);
+}
+
+/** Show the event card above the hovered dragon ball. Text is written as
+ *  textContent, never markup, so USGS place strings stay inert. */
+function onRadarPointerOver(e) {
+  const ball = e.target.closest?.('.radar-ball');
+  if (!ball) return;
+  const radar = ball.closest('.radar');
+  const tip = radar?.querySelector('.radar-tip');
+  if (!tip) return;
+
+  const d = ball.dataset;
+  tip.querySelector('.radar-tip__head').textContent = `${d.stars}★ · M${d.mag}`;
+  tip.querySelector('.radar-tip__place').textContent = d.place;
+  tip.querySelector('.radar-tip__meta').textContent =
+    [`${d.km} km ${d.dir}`, `${d.depth} km deep`, d.when, d.felt].filter(Boolean).join(' · ');
+  tip.style.setProperty('--tip-accent', d.band);
+  tip.classList.add('is-on');
+
+  const box = ball.getBoundingClientRect();
+  const frame = radar.getBoundingClientRect();
+  const half = tip.offsetWidth / 2;
+  const x = box.left - frame.left + box.width / 2;
+  tip.style.left = `${Math.min(Math.max(x, half + 4), frame.width - half - 4)}px`;
+
+  // Flip below the ball when there is no room to sit above it.
+  const above = box.top - frame.top - 8;
+  const flip = above - tip.offsetHeight < 0;
+  tip.classList.toggle('radar-tip--below', flip);
+  tip.style.top = flip ? `${box.bottom - frame.top + 8}px` : `${above}px`;
+}
+
+function onRadarPointerOut(e) {
+  const ball = e.target.closest?.('.radar-ball');
+  if (!ball || ball.contains(e.relatedTarget)) return;
+  ball.closest('.radar')?.querySelector('.radar-tip')?.classList.remove('is-on');
 }
 
 function onKeydown(e) {

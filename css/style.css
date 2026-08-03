@@ -564,25 +564,8 @@ button:active,
 }
 
 /* ── Footer ────────────────────────────────────────────────── */
-.info-footer {
-  text-align: center;
-  padding: var(--space-6) var(--space-6) 28px;
-  color: var(--text-muted);
-  font-size: .78em;
-  line-height: 1.8;
-  border-top: 1px solid var(--border-subtle);
-  margin-top: var(--space-8);
-}
-.footer-link {
-  color: var(--text-muted);
-  text-decoration: none;
-  transition: color var(--dur);
-}
-.footer-link:hover,
-.footer-link:focus-visible {
-  color: var(--text-secondary);
-  text-decoration: underline;
-}
+/* Footer owned by the Neorgon Footer Kit (css/neorgon-footer.css).
+   Edit packages/neorgon-ui/footer/ and re-run sync-footer.sh. */
 
 /* ── Focus styles ──────────────────────────────────────────── */
 :focus-visible {
@@ -672,9 +655,13 @@ body::before {
 }
 
 /* ── Posture ribbon ────────────────────────────────────────── */
+/* Rides directly under the app header, and follows it up when the kit
+   auto-hides the bar on scroll — otherwise the ribbon strands itself
+   with an empty band above it. */
 .posture {
   position: sticky;
-  top: 68px;
+  top: var(--header-h-app, 56px);
+  transition: top .25s ease;
   z-index: 150;
   display: flex;
   align-items: center;
@@ -725,6 +712,7 @@ body::before {
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
+.header-bar.header-hidden + .posture { top: 0; }
 .posture[data-level="nominal"]  .posture__badge { color: var(--ok);   background: color-mix(in srgb, var(--ok) 12%, transparent);   border-color: color-mix(in srgb, var(--ok) 35%, transparent); }
 .posture[data-level="elevated"] .posture__badge { color: var(--warn); background: color-mix(in srgb, var(--warn) 13%, transparent); border-color: color-mix(in srgb, var(--warn) 38%, transparent); }
 .posture[data-level="critical"] .posture__badge { color: var(--crit); background: color-mix(in srgb, var(--crit) 15%, transparent); border-color: color-mix(in srgb, var(--crit) 42%, transparent); }
@@ -872,33 +860,46 @@ body::before {
   gap: var(--space-4);
   margin-bottom: var(--space-4);
 }
-.quake-mag {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 82px; height: 82px;
+/* Magnitude dial — the arc carries the reading, the numeral sits dead
+   centre on the circle's own axis. */
+.mag-dial {
   flex-shrink: 0;
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--band) 26%, transparent), transparent 72%);
-  border: 2px solid var(--band);
-  box-shadow: 0 0 0 6px var(--ring), inset 0 0 18px color-mix(in srgb, var(--band) 22%, transparent);
-  line-height: 1;
+  overflow: visible;
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--band) 32%, transparent));
 }
-.quake-mag__num {
+.mag-dial__well {
+  fill: color-mix(in srgb, var(--band) 10%, transparent);
+  stroke: none;
+}
+.mag-dial__track {
+  fill: none;
+  stroke: var(--ring);
+  stroke-width: 7;
+}
+.mag-dial__arc {
+  fill: none;
+  stroke: var(--band);
+  stroke-width: 7;
+  stroke-linecap: round;
+  transition: stroke-dasharray var(--dur) ease;
+}
+.mag-dial__tick { stroke: color-mix(in srgb, var(--text-muted) 45%, transparent); stroke-width: 1.5; }
+.mag-dial__num {
   font-family: var(--mono);
-  font-size: 1.85rem;
+  font-size: 25px;
   font-weight: 700;
-  color: #fff;
-  line-height: 1;
+  fill: #fff;
   font-variant-numeric: tabular-nums;
 }
-.quake-mag__unit {
+.mag-dial__unit {
   font-family: var(--mono);
-  font-size: .8rem;
-  color: var(--band);
-  margin-left: 2px;
-  align-self: flex-start;
-  margin-top: 6px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  fill: var(--band);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mag-dial__arc { transition: none; }
 }
 .quake-headline__meta { min-width: 0; }
 .quake-band {
@@ -1053,7 +1054,7 @@ body::before {
   margin: 0 auto var(--space-4);
   position: relative;
 }
-.radar svg { display: block; overflow: visible; }
+.radar svg { display: block; overflow: visible; max-width: 100%; height: auto; }
 .radar-ring { fill: none; stroke: rgba(255,255,255,.09); stroke-width: 1; }
 .radar-cross { stroke: rgba(255,255,255,.06); stroke-width: 1; }
 .radar-core { fill: var(--text-primary); }
@@ -1071,28 +1072,103 @@ body::before {
   transform-origin: center;
   animation: radar-ping 1.8s ease-out infinite;
 }
+
+/* Bearing line from the core to each ball — direction stays legible
+   even when a swarm crowds the same quadrant. */
+.radar-lead { stroke: rgba(255,255,255,.16); stroke-width: 1; }
+.radar-lead--alert { stroke-width: 1.4; opacity: .55; }
+
+/* Dragon balls — one per plotted event, star count = proximity rank. */
+.radar-ball {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform var(--dur-fast) ease;
+}
+.radar-ball:hover { transform: scale(1.09); }
+.radar-ball__body { stroke: rgba(122,54,4,.55); stroke-width: .9; }
+.radar-ball__gleam { fill: rgba(255,255,255,.78); pointer-events: none; }
+.radar-star {
+  fill: #b81f28;
+  stroke: #7f1015;
+  stroke-width: .35;
+  stroke-linejoin: round;
+}
+/* Dragon-radar device shell: brushed metal bezel with engraved ticks
+   around a recessed screen. */
+.radar-bezel-edge { fill: none; stroke: rgba(18,22,29,.7); stroke-width: 1.2; }
+.radar-screen { fill: rgba(3,6,14,.55); }
+.radar-tick { stroke: rgba(46,53,64,.5); stroke-width: 1; }
+.radar-tick--major { stroke: rgba(26,32,41,.8); stroke-width: 1.8; }
 .radar-n {
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: .1em;
-  fill: var(--text-muted);
+  letter-spacing: .08em;
+  fill: #2b323d;
 }
 @keyframes radar-spin { to { transform: rotate(360deg); } }
 @keyframes radar-ping {
   0%   { transform: scale(1);   opacity: .9; }
-  100% { transform: scale(3.4); opacity: 0; }
+  100% { transform: scale(2.4); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .radar-sweep, .radar-ping { animation: none; }
+  .radar-ball { transition: none; }
 }
+/* Hover card — floats above the SVG so it is never clipped by a ball. */
+.radar-tip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  transform: translate(-50%, -100%);
+  min-width: 150px;
+  max-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--tip-accent, var(--border-subtle));
+  background: rgba(10, 14, 26, .95);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(0,0,0,.55);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) ease;
+}
+.radar-tip.is-on { opacity: 1; visibility: visible; }
+.radar-tip--below { transform: translate(-50%, 0); }
+.radar-tip__head {
+  font-family: var(--mono);
+  font-size: .74rem;
+  font-weight: 700;
+  color: var(--tip-accent, var(--text-primary));
+}
+.radar-tip__place {
+  font-size: .8rem;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+.radar-tip__meta {
+  font-family: var(--mono);
+  font-size: .64rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .radar-tip { transition: none; }
+}
+
 .radar-scale {
   font-family: var(--mono);
   font-size: .62rem;
   letter-spacing: .1em;
   color: var(--text-muted);
   text-transform: uppercase;
-  margin-top: 4px;
+  text-align: center;
+  margin-top: 6px;
 }
 
 /* ── Seismic: event list ───────────────────────────────────── */
@@ -1155,16 +1231,39 @@ body::before {
 .skeleton-block { align-items: center; }
 
 /* ── Weather: current ──────────────────────────────────────── */
+/* Current conditions read as one hero block; the glyph sits in a
+   circular well so it rhymes with the magnitude dial and the radar. */
 .wx-now {
   display: flex;
   align-items: center;
   gap: var(--space-4);
   margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(120% 140% at 8% 0%, color-mix(in srgb, var(--wx-tint, #7dd3fc) 13%, transparent), transparent 62%),
+    var(--surface-1);
+  border: 1px solid var(--border-subtle);
   flex-wrap: wrap;
 }
-.wx-now__glyph { color: var(--text-secondary); flex-shrink: 0; }
+.wx-now__glyph {
+  display: grid;
+  place-items: center;
+  width: 84px; height: 84px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: var(--text-secondary);
+  background: radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--wx-tint, #7dd3fc) 16%, transparent), transparent 70%);
+  box-shadow: inset 0 0 0 1px var(--border-subtle), inset 0 0 22px rgba(0,0,0,.35);
+}
 .wx-glyph--sun, .wx-glyph--sun-cloud { color: #fbbf24; }
 .wx-glyph--storm { color: #a78bfa; }
+/* The hero tint follows the sky. */
+.wx-now[data-wx="sun"], .wx-now[data-wx="sun-cloud"] { --wx-tint: #fbbf24; }
+.wx-now[data-wx="storm"] { --wx-tint: #a78bfa; }
+.wx-now[data-wx="rain"], .wx-now[data-wx="drizzle"] { --wx-tint: #38bdf8; }
+.wx-now[data-wx="snow"] { --wx-tint: #bae6fd; }
+.wx-now[data-wx="cloud"], .wx-now[data-wx="fog"] { --wx-tint: #94a3b8; }
 .wx-now__read { display: flex; flex-direction: column; }
 .wx-now__temp {
   font-family: var(--mono);
@@ -1413,15 +1512,31 @@ body::before {
 
 /* ── Transport: line board ─────────────────────────────────── */
 .metro-board { display: flex; flex-direction: column; gap: 4px; }
+/* Each row carries its line's own colour as a rail, so the board reads
+   as a transit map rather than a list of rows. */
 .metro-line {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 8px 10px;
+  padding: 8px 10px 8px 16px;
   border-radius: var(--radius-sm);
-  background: var(--surface-1);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--line) 11%, transparent), transparent 46%),
+    var(--surface-1);
   border: 1px solid transparent;
+  transition: background var(--dur-fast), transform var(--dur-fast);
 }
+.metro-line::before {
+  content: "";
+  position: absolute;
+  left: 5px; top: 7px; bottom: 7px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--line);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--line) 55%, transparent);
+}
+.metro-line:hover { transform: translateX(2px); }
 .metro-line--warn { border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
 .metro-line--crit { border-color: color-mix(in srgb, var(--crit) 38%, transparent); }
 .metro-badge {
@@ -1434,7 +1549,9 @@ body::before {
   color: #fff;
   padding: 3px 6px;
   border-radius: 5px;
+  background: var(--line);
   text-shadow: 0 1px 1px rgba(0,0,0,.35);
+  box-shadow: 0 1px 6px color-mix(in srgb, var(--line) 45%, transparent);
 }
 .metro-line__name { flex: 1; font-size: var(--text-sm); color: var(--text-secondary); }
 .metro-status {
@@ -1446,7 +1563,24 @@ body::before {
   font-weight: 600;
   letter-spacing: .03em;
 }
-.metro-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.metro-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 7px currentColor;
+}
+/* A line in trouble earns a heartbeat; nominal lines stay still. */
+.metro-line--warn .metro-dot,
+.metro-line--crit .metro-dot { animation: metro-pulse 1.7s ease-in-out infinite; }
+@keyframes metro-pulse {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: .45; transform: scale(.8); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .metro-line--warn .metro-dot,
+  .metro-line--crit .metro-dot { animation: none; }
+  .metro-line:hover { transform: none; }
+}
 .metro-status--ok   { color: var(--ok); }
 .metro-status--warn { color: var(--warn); }
 .metro-status--crit { color: var(--crit); }
@@ -1529,7 +1663,7 @@ a.feed-item__title:hover { color: var(--accent-bright); text-decoration: underli
   .panel--seismic { grid-row: auto; }
 }
 @media (max-width: 600px) {
-  .posture { top: 68px; flex-wrap: wrap; gap: var(--space-2); }
+  .posture { flex-wrap: wrap; gap: var(--space-2); }
   .posture__stat { margin-left: 0; }
   .board { padding: var(--space-4); }
   .wx-stats { margin-left: 0; width: 100%; }
