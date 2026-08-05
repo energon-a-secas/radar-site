@@ -6,9 +6,12 @@
    ══════════════════════════════════════════════════════════════ */
 
 :root {
-  /* Geometry */
-  --footer-pad-block: 28px;
+  /* Geometry — minimal mode is sized to match the one-line .info-footer
+     it replaces (~70px total). Raise --footer-pad-block per site only if
+     that site genuinely wants a heavier footer. */
+  --footer-pad-block: 24px;
   --footer-pad-block-app: 14px;
+  --footer-pad-block-content: 40px;
   --footer-max-w: 1100px;
   --footer-control-h: 32px;
 
@@ -135,8 +138,26 @@ body.neo-footer-root {
   opacity: .8;
 }
 
-/* ── Mode: minimal (default) — the one-liner most tool sites use ── */
-.neo-footer[data-footer-mode="minimal"] .neo-footer-bar { font-size: 1em; }
+/* ── Mode: minimal (default) — the one-liner most tool sites use ──
+   The note and the meta bar share ONE centred line whenever they fit,
+   and wrap to a second only when the copy is genuinely long. Stacking
+   them unconditionally made this mode ~60% taller than the
+   `.info-footer` one-liner it is meant to replace. */
+.neo-footer[data-footer-mode="minimal"],
+.neo-footer:not([data-footer-mode]) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px 12px;
+}
+.neo-footer[data-footer-mode="minimal"] > .neo-footer-inner,
+.neo-footer[data-footer-mode="minimal"] > .neo-footer-bar,
+.neo-footer:not([data-footer-mode]) > .neo-footer-inner,
+.neo-footer:not([data-footer-mode]) > .neo-footer-bar {
+  margin: 0;
+  font-size: 1em;
+}
 
 /* ── Mode: app — slim, low-contrast, stays out of the way ───────── */
 .neo-footer[data-footer-mode="app"] {
@@ -166,8 +187,9 @@ body.neo-footer-root {
   .neo-footer[data-footer-mode="app"] .neo-footer-inner { flex: 1 1 auto; }
 }
 
-/* ── Mode: content — brand block + link columns + bottom bar ────── */
-.neo-footer[data-footer-mode="content"] { text-align: left; padding-top: 40px; }
+/* ── Mode: content — brand block + link columns + bottom bar ──────
+   Deliberately the tall one: it carries navigation, not just a note. */
+.neo-footer[data-footer-mode="content"] { text-align: left; padding-top: var(--footer-pad-block-content); }
 .neo-footer[data-footer-mode="content"] .neo-footer-inner {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 2fr);
