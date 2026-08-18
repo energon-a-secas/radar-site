@@ -21,3 +21,11 @@ package-lock.json
 # ── Cloudflare Worker ─────────────────────────────────────────────────────────
 worker/node_modules/
 .wrangler/
+
+# ── Neorgon base (enforced by smoke check 20) ─────────────────────────────────
+!.env.example
+.forge/
+__pycache__/
+*.py[cod]
+skills-archived/
+*.log
