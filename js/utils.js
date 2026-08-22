@@ -8,9 +8,11 @@ import { escHtml, showToast as kitToast } from './neorgon-dom.js';
 export { escHtml };
 
 // ── Shared utilities ─────────────────────────────────────────
-// Small, pure helpers used across modules.
+// Small, pure helpers used across modules. Anything that depends on
+// *where* the board is centred reads the active city, so switching city
+// re-points distance, bearing, clock and calendar helpers at once.
 
-import { SANTIAGO } from './config.js';
+import { activeCity } from './state.js';
 
 /** Cached element lookup by ID. */
 const _els = {};
@@ -19,7 +21,6 @@ export function $(id) {
 }
 
 
-/** Show a temporary toast notification. */
 /** This site's own toast contract, rendered by the kit. */
 export function showToast(msg) {
   return kitToast(msg, { id: 'app-toast', className: 'toast',
@@ -44,11 +45,11 @@ export function timeAgo(input) {
   return `${months}mo ago`;
 }
 
-/** Format a time in Santiago's timezone. */
-export function santiagoTime(input, opts = { hour: '2-digit', minute: '2-digit' }) {
+/** Format a time in the active city's timezone. */
+export function cityTime(input, opts = { hour: '2-digit', minute: '2-digit' }, city = activeCity()) {
   const d = input instanceof Date ? input : new Date(input);
   try {
-    return new Intl.DateTimeFormat('en-GB', { ...opts, timeZone: SANTIAGO.tz }).format(d);
+    return new Intl.DateTimeFormat('en-GB', { ...opts, timeZone: city.tz }).format(d);
   } catch {
     return d.toISOString().slice(11, 16);
   }
@@ -66,17 +67,18 @@ export function haversineKm(lat1, lon1, lat2, lon2) {
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-/** Distance + bearing of a point from Santiago's centre. */
-export function fromSantiago(lat, lon) {
-  const km = haversineKm(SANTIAGO.lat, SANTIAGO.lon, lat, lon);
+/** Distance, initial bearing (degrees clockwise from north) and compass
+ *  point of a location as seen from the active city's centre. */
+export function fromCity(lat, lon, city = activeCity()) {
+  const km = haversineKm(city.lat, city.lon, lat, lon);
   const toRad = (x) => (x * Math.PI) / 180;
-  const dLon = toRad(lon - SANTIAGO.lon);
+  const dLon = toRad(lon - city.lon);
   const y = Math.sin(dLon) * Math.cos(toRad(lat));
   const x =
-    Math.cos(toRad(SANTIAGO.lat)) * Math.sin(toRad(lat)) -
-    Math.sin(toRad(SANTIAGO.lat)) * Math.cos(toRad(lat)) * Math.cos(dLon);
-  const brng = (Math.atan2(y, x) * 180) / Math.PI;
-  return { km, compass: compass(brng) };
+    Math.cos(toRad(city.lat)) * Math.sin(toRad(lat)) -
+    Math.sin(toRad(city.lat)) * Math.cos(toRad(lat)) * Math.cos(dLon);
+  const bearing = (Math.atan2(y, x) * 180) / Math.PI;
+  return { km, bearing, compass: compass(bearing) };
 }
 
 /** Bearing degrees → 8-point compass. */
@@ -92,19 +94,20 @@ export function fmtTemp(celsius, unit = 'C') {
   return `${Math.round(v)}°`;
 }
 
-/** Weekday label ("Mon") for an ISO date, in Santiago tz. */
-export function weekday(isoDate) {
+/** Weekday label ("Mon") for a 'YYYY-MM-DD' date in the active city's
+ *  zone. Anchored at UTC noon so the browser's own zone never shifts it. */
+export function weekday(isoDate, city = activeCity()) {
   try {
     return new Intl.DateTimeFormat('en-US', {
-      weekday: 'short', timeZone: SANTIAGO.tz,
-    }).format(new Date(`${isoDate}T12:00:00`));
+      weekday: 'short', timeZone: city.tz,
+    }).format(new Date(`${isoDate}T12:00:00Z`));
   } catch {
     return isoDate.slice(5);
   }
 }
 
-/** True if the ISO date string is today in Santiago. */
-export function isToday(isoDate) {
-  const now = new Intl.DateTimeFormat('en-CA', { timeZone: SANTIAGO.tz }).format(new Date());
+/** True if the ISO date string is today in the active city. */
+export function isToday(isoDate, city = activeCity()) {
+  const now = new Intl.DateTimeFormat('en-CA', { timeZone: city.tz }).format(new Date());
   return isoDate === now;
 }

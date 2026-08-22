@@ -1,16 +1,20 @@
 // ── Event handlers ───────────────────────────────────────────
-// Wires the controls: manual sync, magnitude filter, unit toggle,
-// keyboard shortcuts, auto-refresh, and the ticking clock.
+// Wires the controls: city selector, manual sync, magnitude filter,
+// unit toggle, keyboard shortcuts, auto-refresh, and the ticking clock.
 
-import { state, save } from './state.js';
-import { $, showToast } from './utils.js';
-import { render, renderPanel, updateClock, updateSyncLabel } from './render.js';
+import { state, save, setCity, activeCity } from './state.js';
+import { $, escHtml, showToast } from './utils.js';
+import { render, renderPanel, updateClock } from './render.js';
 import { syncAll } from './sync.js';
-import { REFRESH_MS } from './config.js';
+import { CITIES, REFRESH_MS } from './config.js';
 
 const MAG_STEPS = [2.5, 3.5, 4.5, 5.5];
 
 export function bindEvents() {
+  // City selector: options come from the table so the shell never
+  // carries a second copy of the city list.
+  buildCitySelect();
+
   // Manual sync.
   $('syncBtn')?.addEventListener('click', () => syncAll({ toast: true }));
 
@@ -65,6 +69,30 @@ export function bindEvents() {
   setInterval(() => { if (document.visibilityState === 'visible') syncAll(); }, REFRESH_MS);
 }
 
+function buildCitySelect() {
+  const sel = $('citySelect');
+  if (!sel) return;
+  sel.innerHTML = Object.values(CITIES)
+    .map((c) => `<option value="${c.id}">${escHtml(c.name)}</option>`)
+    .join('');
+  sel.value = activeCity().id;
+  sel.addEventListener('change', () => switchCity(sel.value));
+}
+
+/** Re-centre the board: clear the old city's readings, repaint the
+ *  chrome and skeletons, and start a sync for the new one. */
+function switchCity(id) {
+  if (!setCity(state, id)) return;
+  render();
+  syncAll({ toast: true });
+}
+
+function nextCity() {
+  const ids = Object.keys(CITIES);
+  const i = ids.indexOf(activeCity().id);
+  switchCity(ids[(i + 1) % ids.length]);
+}
+
 /** Show the event card above the hovered dragon ball. Text is written as
  *  textContent, never markup, so USGS place strings stay inert. */
 function onRadarPointerOver(e) {
@@ -104,6 +132,7 @@ function onRadarPointerOut(e) {
 function onKeydown(e) {
   // Ignore when typing in a field.
   if (e.target.matches('input, textarea, select')) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key.toLowerCase();
   if (k === 'r') {
     e.preventDefault();
@@ -111,6 +140,9 @@ function onKeydown(e) {
   } else if (k === 'u') {
     e.preventDefault();
     $('unitToggle')?.click();
+  } else if (k === 'c') {
+    e.preventDefault();
+    nextCity();
   } else if (k >= '1' && k <= '4') {
     e.preventDefault();
     state.minMag = MAG_STEPS[Number(k) - 1];
@@ -118,7 +150,7 @@ function onKeydown(e) {
     reflectMagFilter();
     renderPanel('quakes');
   } else if (k === '?') {
-    showToast('R sync · U °C/°F · 1-4 magnitude filter');
+    showToast('R sync · C next city · U °C/°F · 1-4 magnitude filter');
   }
 }
 

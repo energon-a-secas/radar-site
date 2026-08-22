@@ -1,11 +1,17 @@
 // ── Radar API proxy ──────────────────────────────────────────
 // Fetches the sources the browser can't reach directly (CORS or
 // no CORS headers) and normalizes them to the shapes the frontend
-// expects. Three POST endpoints, all CORS-restricted:
+// expects. Three POST endpoints, all CORS-restricted, each taking a
+// JSON body `{ city }` naming a key of the frontend's CITIES table:
 //
-//   POST /quakes  → { items: [{ id, mag, place, time, depth, lat, lon, url }] }
-//   POST /metro   → { lines: [{ id, state, detail }], notes: [], source }
-//   POST /feed    → { items: [{ source, title, summary, time, url }] }
+//   POST /quakes  → { items: [{ id, mag, place, time, depth, lat, lon, url }], city, supported }
+//   POST /metro   → { lines: [{ id, state, detail }], notes: [], source, city, supported }
+//   POST /feed    → { items: [{ source, title, summary, time, url }], city, supported }
+//
+// CITY_SOURCES maps a city to its handlers. A city with no handler for a
+// kind (today: every city but Santiago) gets an empty payload with
+// `supported: false`, never another city's data. A missing `city`
+// defaults to santiago so older clients keep working.
 //
 // Every handler is defensive: upstream layout changes degrade to an
 // empty array, never a 500 that blanks the board. The frontend
@@ -48,18 +54,38 @@ export default {
     }
 
     const path = new URL(request.url).pathname;
+    const kind = KIND_BY_PATH[path];
+    if (!kind) return json({ error: 'Not found' }, 404, request);
+
+    const body = await request.json().catch(() => ({}));
+    const city = typeof body.city === 'string' && body.city ? body.city : DEFAULT_CITY;
+    const handler = CITY_SOURCES[city]?.[kind];
+    if (!handler) {
+      return json({ ...emptyPayload(kind), city, supported: false }, 200, request);
+    }
     try {
-      if (path === '/quakes') return json(await getQuakes(), 200, request);
-      if (path === '/metro')  return json(await getMetro(), 200, request);
-      if (path === '/feed')   return json(await getFeed(), 200, request);
-      return json({ error: 'Not found' }, 404, request);
+      return json({ ...(await handler()), city, supported: true }, 200, request);
     } catch {
       // Never blank the board: return an empty-but-valid payload.
-      const empty = path === '/metro' ? { lines: [], notes: [], source: null } : { items: [] };
-      return json(empty, 200, request);
+      return json({ ...emptyPayload(kind), city, supported: true }, 200, request);
     }
   },
 };
+
+const DEFAULT_CITY = 'santiago';
+
+const KIND_BY_PATH = { '/quakes': 'quakes', '/metro': 'metro', '/feed': 'feed' };
+
+// City → { quakes, metro, feed } handlers. Only Santiago has sources
+// today; adding a city's national network, transit feed or alert RSS is
+// one handler here plus the matching `live` flag in the frontend table.
+const CITY_SOURCES = {
+  santiago: { quakes: getQuakesCSN, metro: getMetroSantiago, feed: getFeedChile },
+};
+
+function emptyPayload(kind) {
+  return kind === 'metro' ? { lines: [], notes: [], source: null } : { items: [] };
+}
 
 function json(obj, status, request) {
   return new Response(JSON.stringify(obj), { status, headers: corsHeaders(request) });
@@ -75,7 +101,7 @@ async function getText(url) {
 // CSN publishes recent events at sismologia.cl. The public listing
 // is HTML; we parse the tabular rows. Values that don't parse are
 // dropped rather than guessed.
-async function getQuakes() {
+async function getQuakesCSN() {
   const html = await getText('https://www.sismologia.cl/');
   const items = [];
 
@@ -118,7 +144,7 @@ async function getQuakes() {
 // the full station list. We read the line codes and surface any
 // disruption message. A line we can't read defaults to "unknown"
 // (the frontend shows "No data", never a false green).
-async function getMetro() {
+async function getMetroSantiago() {
   // id → API key. L4A must precede L4 conceptually but keys are distinct.
   const IDS = { L1: 'l1', L2: 'l2', L3: 'l3', L4: 'l4', L4A: 'l4a', L5: 'l5', L6: 'l6' };
   const data = JSON.parse(await getText('https://www.metro.cl/api/estadoRedDetalle.php'));
@@ -169,7 +195,7 @@ function metroState(code, msg) {
 // Aggregates public RSS/Atom from CSN (seismology) and SENAPRED
 // (emergencies). Each source is fetched independently so one dead
 // feed doesn't sink the rest.
-async function getFeed() {
+async function getFeedChile() {
   const sources = [
     { name: 'CSN', url: 'https://www.sismologia.cl/rss/ultimos_sismos.xml' },
     { name: 'SENAPRED', url: 'https://senapred.cl/feed/' },

@@ -1,11 +1,12 @@
 // ── Weather panel ────────────────────────────────────────────
 // Current conditions readout + a 7-day forecast strip, plus a
-// compact air-quality gauge (Santiago's smog is a daily factor).
+// compact air-quality gauge (smog is a daily factor in every city on
+// the table). All times and calendar days are in the active city's zone.
 // Glyphs are hand-drawn inline SVG — no emoji, no icon font.
 
 import { weatherCode, aqiBand } from './config.js';
 import { state } from './state.js';
-import { escHtml, fmtTemp, weekday, isToday, santiagoTime, compass } from './utils.js';
+import { escHtml, fmtTemp, weekday, isToday, cityTime, compass } from './utils.js';
 
 export function renderWeather() {
   const s = state.weather;
@@ -38,8 +39,8 @@ function rainIntensity(mm) {
 
 // ── Air-quality gauge ──────────────────────────────────────
 // A horizontal band gauge with a marker at the current AQI. Reads at a
-// glance where today sits on the 0–300 scale — Santiago's smog is a
-// daily planning factor, so it earns a dedicated visual.
+// glance where today sits on the 0–300 scale; smog is a daily planning
+// factor from Santiago to Mexico City, so it earns a dedicated visual.
 function renderAqiGauge(air) {
   if (!air || air.aqi === null || air.aqi === undefined) return '';
   const aqi = Math.round(air.aqi);
@@ -130,12 +131,12 @@ function hourlyChart(hours) {
   // Hour ticks every 6 hours + temperature dots with tooltips.
   const ticks = hours.map((x, i) => {
     if (i % 6 !== 0 && i !== n - 1) return '';
-    return `<text x="${xAt(i).toFixed(1)}" y="${h - 6}" class="wx-hr-tick" text-anchor="${i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}">${santiagoTime(x.iso)}</text>`;
+    return `<text x="${xAt(i).toFixed(1)}" y="${h - 6}" class="wx-hr-tick" text-anchor="${i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}">${cityTime(x.time)}</text>`;
   }).join('');
 
   const dots = hours.map((x, i) => {
     if (i % 3 !== 0) return '';
-    return `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(x.temp).toFixed(1)}" r="2.2" class="wx-hr-dot"><title>${santiagoTime(x.iso)} · ${fmtTemp(x.temp, unit)}${unit} · ${x.pop}% rain</title></circle>`;
+    return `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(x.temp).toFixed(1)}" r="2.2" class="wx-hr-dot"><title>${cityTime(x.time)} · ${fmtTemp(x.temp, unit)}${unit} · ${x.pop}% rain</title></circle>`;
   }).join('');
 
   const hi = fmtTemp(tMax, unit), lo = fmtTemp(tMin, unit);
@@ -264,7 +265,7 @@ function renderForecast(daily) {
 
 function sunWindow(day) {
   if (!day?.sunrise || !day?.sunset) return '--';
-  return `${santiagoTime(day.sunrise)} to ${santiagoTime(day.sunset)}`;
+  return `${cityTime(day.sunrise)} to ${cityTime(day.sunset)}`;
 }
 
 // ── Inline SVG glyphs ──────────────────────────────────────

@@ -1,11 +1,13 @@
 // ── Alert feed panel ─────────────────────────────────────────
-// A reverse-chronological stream of official notices: CSN
-// seismology, SENAPRED emergency alerts, and Meteorología
-// bulletins, aggregated by the Worker. Each item is source-tagged
-// so the reader knows the authority behind it.
+// A reverse-chronological stream of official notices from the active
+// city's authorities (Santiago: CSN seismology, SENAPRED emergency
+// alerts, Meteorología bulletins), aggregated by the Worker. Each item
+// is source-tagged so the reader knows the authority behind it. Cities
+// whose table entry has no live feed get a placeholder that names the
+// authorities instead of pretending there is nothing to report.
 
 import { workerReady } from './config.js';
-import { state } from './state.js';
+import { state, activeCity } from './state.js';
 import { escHtml, timeAgo } from './utils.js';
 
 // Source → tone class for the tag chip.
@@ -18,15 +20,31 @@ const SOURCE_TONE = {
   SHOA: 'tsunami',
 };
 
+/** "A, B and C" from a list of names. */
+function listNames(names) {
+  if (names.length <= 1) return names.join('');
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
 export function renderFeed() {
+  const city = activeCity();
   const s = state.feed;
+  const authorities = city.alerts?.authorities || [];
+
+  if (!city.alerts?.live) {
+    return `
+      <div class="panel-placeholder">
+        <p>Official notices for ${escHtml(city.short)} come from ${escHtml(listNames(authorities))}.</p>
+        <p class="panel-placeholder__note">Not wired into this board yet.</p>
+      </div>
+    `;
+  }
 
   if (!workerReady()) {
     return `
-      <div class="feed-placeholder">
-        <p>Official alert stream aggregates CSN seismology, SENAPRED emergencies,
-        and Meteorología bulletins.</p>
-        <p class="feed-placeholder__note">Activates once the alert Worker is deployed.</p>
+      <div class="panel-placeholder">
+        <p>Official alert stream aggregates ${escHtml(listNames(authorities))} bulletins.</p>
+        <p class="panel-placeholder__note">Activates once the alert Worker is deployed.</p>
       </div>
     `;
   }

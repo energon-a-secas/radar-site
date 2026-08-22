@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Radar | Santiago Situation Board</title>
-  <meta name="description" content="Track live earthquakes felt in Santiago, the week's weather by the hour, and Metro disruptions across Santiago de Chile in one tactical dashboard">
+  <meta name="description" content="Live earthquakes, hourly weather, air quality and Metro status for Santiago de Chile on one tactical board, with Bogotá, Lima, Mexico City and Buenos Aires a switch away">
   <meta property="og:title" content="Radar | Santiago Situation Board">
-  <meta property="og:description" content="Live earthquakes, hourly weather, and Metro status for Santiago de Chile on one tactical board">
+  <meta property="og:description" content="Live earthquakes, hourly weather, and Metro status for Santiago de Chile on one tactical board. Bogotá, Lima, Mexico City and Buenos Aires a switch away">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://radar.neorgon.com/">
   <meta property="og:site_name" content="Neorgon">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Radar | Santiago Situation Board">
-  <meta name="twitter:description" content="Live earthquakes, hourly weather, and Metro status for Santiago de Chile">
+  <meta name="twitter:description" content="Live earthquakes, hourly weather, and Metro status for Santiago de Chile; four more Latin American capitals a switch away">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://radar.neorgon.com/">
   <meta property="og:locale" content="en_US">
@@ -37,7 +37,7 @@
     "@context": "https://schema.org",
     "@type": "WebApplication",
     "name": "Radar",
-    "description": "Live earthquake, weather, and Metro transit watch for Santiago de Chile in one tactical dashboard.",
+    "description": "Live earthquake, weather, air quality and Metro transit watch for Santiago de Chile in one tactical dashboard, switchable to Bogotá, Lima, Mexico City and Buenos Aires.",
     "url": "https://radar.neorgon.com/",
     "applicationCategory": "UtilitiesApplication",
     "operatingSystem": "Any",
@@ -64,7 +64,7 @@
     <div class="header-right">
       <div class="header-clock" aria-hidden="true">
         <span class="header-clock__time" id="clock">--:--:--</span>
-        <span class="header-clock__zone">Santiago</span>
+        <span class="header-clock__zone" id="clockZone">Santiago</span>
       </div>
       <a class="header-home" href="https://neorgon.com/" title="neorgon.com" aria-label="Neorgon home">
         <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -84,7 +84,10 @@
       <div class="command-bar">
         <div class="command-bar__loc">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
-          <span>Santiago de Chile</span>
+          <!-- Options are built from CITIES in js/config.js; the default stays Santiago. -->
+          <select class="city-select" id="citySelect" aria-label="City the board is centred on">
+            <option value="santiago">Santiago de Chile</option>
+          </select>
         </div>
         <div class="command-bar__actions">
           <button class="chip-btn" id="unitToggle" type="button" aria-label="Switch temperature unit">°C</button>

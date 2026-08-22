@@ -1,18 +1,21 @@
 // ── Render orchestration ─────────────────────────────────────
-// Owns the posture ribbon (the war-room status line) and delegates
-// each panel body to its domain module. Panels update independently
-// so a slow source never blocks the rest of the board.
+// Owns the posture ribbon (the war-room status line), the city chrome
+// (title, header subtitle, clock zone, selector) and delegates each
+// panel body to its domain module. Panels update independently so a
+// slow source never blocks the rest of the board.
 
-import { state } from './state.js';
-import { $, santiagoTime, timeAgo } from './utils.js';
+import { state, activeCity } from './state.js';
+import { $, cityTime, timeAgo } from './utils.js';
 import { renderQuakes, strongest24h, quakes24h, lastFelt24h } from './quakes.js';
+import { syncSweepPhase } from './radar.js';
 import { renderWeather } from './weather.js';
 import { renderTransport, transportRank, disruptedCount } from './transport.js';
 import { renderFeed } from './feed.js';
 
 // Overall posture: the single readout a commander glances at first.
-// Escalates on strong recent quakes or closed Metro lines.
+// Escalates on strong recent quakes or closed metro lines.
 function computePosture() {
+  const city = activeCity();
   const strong = strongest24h();
   const felt = lastFelt24h();
   const tRank = transportRank();
@@ -29,12 +32,15 @@ function computePosture() {
 
   const bits = [];
   if (felt) {
-    bits.push(`M${felt.mag.toFixed(1)} felt in Santiago ${timeAgo(felt.time)}`);
+    bits.push(`M${felt.mag.toFixed(1)} felt in ${city.short} ${timeAgo(felt.time)}`);
   } else if (strong) {
     bits.push(`Peak M${strong.mag.toFixed(1)} in 24h`);
   }
   const dc = disruptedCount();
-  if (dc > 0) bits.push(`${dc} Metro line${dc > 1 ? 's' : ''} affected`);
+  if (dc > 0) {
+    const noun = city.transit?.label === 'Subte lines' ? 'Subte' : 'Metro';
+    bits.push(`${dc} ${noun} line${dc > 1 ? 's' : ''} affected`);
+  }
   const line = bits.length ? bits.join(' · ') : 'All systems nominal';
 
   return { level, line };
@@ -61,10 +67,30 @@ export function renderPosture() {
   `;
 }
 
+/** Everything outside the panels that names the city: document title,
+ *  header subtitle, clock zone, the selector's value and the transport
+ *  panel's heading. Cheap and idempotent, so it runs on every render. */
+export function renderCityChrome() {
+  const city = activeCity();
+  document.title = `Radar | ${city.short} Situation Board`;
+  const sub = document.querySelector('.header-subtitle');
+  if (sub) sub.textContent = `${city.short} situation board`;
+  const zone = $('clockZone');
+  if (zone) zone.textContent = city.short;
+  const sel = $('citySelect');
+  if (sel && sel.value !== city.id) sel.value = city.id;
+  const transportTitle = $('transport-title');
+  if (transportTitle) transportTitle.textContent = city.transit?.label || 'Transit';
+}
+
 /** Write a panel body + its meta timestamp. */
 function paintPanel(id, html, slice) {
   const body = $(`${id}-body`);
-  if (body) body.innerHTML = html;
+  if (body) {
+    body.innerHTML = html;
+    // The radar's sweep must not restart with every repaint.
+    if (id === 'quakes') syncSweepPhase(body);
+  }
   const meta = $(`${id}-meta`);
   if (meta) {
     if (slice?.status === 'error') {
@@ -80,8 +106,9 @@ function paintPanel(id, html, slice) {
   }
 }
 
-/** Full render — called on load and after each sync. */
+/** Full render: called on load, after each sync, and on a city switch. */
 export function render(s = state) {
+  renderCityChrome();
   renderPosture();
   paintPanel('quakes', renderQuakes(), s.quakes);
   paintPanel('weather', renderWeather(), s.weather);
@@ -103,11 +130,11 @@ export function renderPanel(name) {
   renderPosture();
 }
 
-/** Live Santiago clock in the header. */
+/** Live clock in the header, on the active city's time. */
 export function updateClock() {
   const el = $('clock');
   if (el) {
-    el.textContent = santiagoTime(new Date(), {
+    el.textContent = cityTime(new Date(), {
       hour: '2-digit', minute: '2-digit', second: '2-digit',
     });
   }

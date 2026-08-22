@@ -3,11 +3,15 @@
 //   1. Keyless + CORS-friendly → fetched directly (USGS, Open-Meteo).
 //   2. Blocked or token-bearing → routed through the Worker
 //      (CSN local tremors, Metro status, official alert feeds).
-// Every call resolves to data or a typed failure; nothing throws
-// past this module, so one dead source never blanks the board.
+// Every fetcher takes the city it is fetching for, so a city switch
+// mid-flight cannot re-point a request, and the Worker is only asked for
+// sources the city's table entry declares live: the client, not the
+// proxy, decides that Bogotá never receives Santiago's Metro board.
+// Every call resolves to data or a typed failure; nothing throws past
+// this module, so one dead source never blanks the board.
 
 import {
-  USGS_QUERY, WEATHER_URL, AIR_URL, WORKER_URL, workerReady,
+  usgsQuery, weatherUrl, airUrl, WORKER_URL, workerReady,
 } from './config.js';
 
 const TIMEOUT_MS = 9000;
@@ -25,23 +29,25 @@ async function getJSON(url, init = {}) {
   }
 }
 
-/** POST helper for the Worker. */
-async function workerPost(path, body) {
+/** POST helper for the Worker. Every call names the city so the proxy
+ *  can route to that city's sources (and refuse cities it has none for). */
+async function workerPost(path, city, body) {
   return getJSON(`${WORKER_URL}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body || {}),
+    body: JSON.stringify({ city: city.id, ...(body || {}) }),
   });
 }
 
 // ── Earthquakes ────────────────────────────────────────────
-// USGS is the always-on backbone. The Worker (when live) adds the
-// Chilean CSN feed, which reports smaller local tremors USGS omits.
-export async function fetchQuakes() {
+// USGS is the always-on backbone. Where the city declares a local
+// network (Santiago: CSN) the Worker adds it, which reports smaller
+// local tremors USGS omits.
+export async function fetchQuakes(city) {
   const out = { items: [], sources: [], error: null };
 
   try {
-    const geo = await getJSON(USGS_QUERY);
+    const geo = await getJSON(usgsQuery(city));
     const usgs = (geo.features || []).map((f) => normalizeUSGS(f));
     out.items.push(...usgs);
     out.sources.push('USGS');
@@ -49,10 +55,10 @@ export async function fetchQuakes() {
     out.error = 'USGS unreachable';
   }
 
-  if (workerReady()) {
+  if (workerReady() && city.localNetwork) {
     try {
-      const csn = await workerPost('/quakes', {});
-      const rows = (csn.items || []).map((r) => normalizeCSN(r));
+      const local = await workerPost('/quakes', city);
+      const rows = (local.items || []).map((r) => normalizeLocal(r, city.localNetwork));
       // Merge, de-duplicating events within ~2 min and 0.4 mag.
       for (const q of rows) {
         const dup = out.items.some(
@@ -60,8 +66,8 @@ export async function fetchQuakes() {
         );
         if (!dup) out.items.push(q);
       }
-      out.sources.push('CSN');
-    } catch { /* Worker or CSN down — USGS still carries the panel */ }
+      out.sources.push(city.localNetwork);
+    } catch { /* Worker or local network down; USGS still carries the panel */ }
   }
 
   out.items.sort((a, b) => b.time - a.time);
@@ -82,35 +88,39 @@ function normalizeUSGS(f) {
   };
 }
 
-function normalizeCSN(r) {
+function normalizeLocal(r, network) {
   return {
-    id: `csn-${r.id || r.time}`,
+    id: `${network.toLowerCase()}-${r.id || r.time}`,
     mag: Number(r.mag) || 0,
-    place: r.place || 'Chile',
+    place: r.place || network,
     time: typeof r.time === 'number' ? r.time : new Date(r.time).getTime(),
     depth: Math.round(Number(r.depth) || 0),
     lat: Number(r.lat) || 0,
     lon: Number(r.lon) || 0,
     url: r.url || '',
-    source: 'CSN',
+    source: network,
   };
 }
 
 // ── Weather + air ──────────────────────────────────────────
-export async function fetchWeather() {
+// Open-Meteo is asked for unix epochs (see weatherUrl), so every instant
+// here is epoch ms and the city's zone is applied only when formatting.
+// A day's calendar date is read from its local midnight in the city's
+// zone, never from the browser's.
+export async function fetchWeather(city) {
   const out = { current: null, daily: [], hourly: [], error: null };
   try {
-    const w = await getJSON(WEATHER_URL);
+    const w = await getJSON(weatherUrl(city));
     out.current = w.current || null;
-    out.daily = (w.daily?.time || []).map((date, i) => ({
-      date,
+    out.daily = (w.daily?.time || []).map((t, i) => ({
+      date: localDate(t * 1000, city),
       code: w.daily.weather_code[i],
       max: w.daily.temperature_2m_max[i],
       min: w.daily.temperature_2m_min[i],
       pop: w.daily.precipitation_probability_max[i],
       wind: w.daily.wind_speed_10m_max[i],
-      sunrise: w.daily.sunrise[i],
-      sunset: w.daily.sunset[i],
+      sunrise: w.daily.sunrise[i] * 1000,
+      sunset: w.daily.sunset[i] * 1000,
     }));
     // Hourly series (next 24h from "now"), for the collapsible curve.
     out.hourly = normalizeHourly(w.hourly);
@@ -120,6 +130,15 @@ export async function fetchWeather() {
   return out;
 }
 
+/** 'YYYY-MM-DD' of an instant in the city's zone. */
+function localDate(epochMs, city) {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: city.tz }).format(new Date(epochMs));
+  } catch {
+    return new Date(epochMs).toISOString().slice(0, 10);
+  }
+}
+
 // Open-Meteo returns full local-day hourly arrays; slice to the next
 // 24 hours starting at the current hour so the curve reads forward.
 function normalizeHourly(hourly) {
@@ -127,8 +146,7 @@ function normalizeHourly(hourly) {
   if (!times.length) return [];
   const now = Date.now();
   const all = times.map((t, i) => ({
-    time: new Date(t).getTime(),
-    iso: t,
+    time: t * 1000,
     temp: hourly.temperature_2m?.[i] ?? null,
     pop: hourly.precipitation_probability?.[i] ?? 0,
     precip: hourly.precipitation?.[i] ?? 0,
@@ -140,46 +158,50 @@ function normalizeHourly(hourly) {
   return all.slice(start, start + 24);
 }
 
-export async function fetchAir() {
+export async function fetchAir(city) {
   try {
-    const a = await getJSON(AIR_URL);
+    const a = await getJSON(airUrl(city));
     return { aqi: a.current?.us_aqi ?? null, pm25: a.current?.pm2_5 ?? null };
   } catch {
     return { aqi: null, pm25: null };
   }
 }
 
-// ── Transport (Metro) ──────────────────────────────────────
-// No official API — the Worker scrapes metro.cl's status page.
-// Without the Worker we return the static line map with unknown state.
-export async function fetchTransport() {
-  if (!workerReady()) {
-    return { lines: [], notes: [], source: null, error: null };
+// ── Transport (metro / subte) ──────────────────────────────
+// Only cities whose transit entry names a live source are asked; for
+// the rest the static line list renders for reference and `live` is
+// false so the panel can say why there is no status.
+export async function fetchTransport(city) {
+  const live = Boolean(workerReady() && city.transit?.live);
+  if (!live) {
+    return { lines: [], notes: [], source: null, error: null, live: false };
   }
   try {
-    const t = await workerPost('/metro', {});
+    const t = await workerPost('/metro', city);
     return {
       lines: t.lines || [],
       notes: t.notes || [],
-      source: t.source || 'metro.cl',
+      source: t.source || city.transit.live,
       error: null,
+      live: true,
     };
   } catch {
-    return { lines: [], notes: [], source: null, error: 'Metro status unreachable' };
+    return { lines: [], notes: [], source: null, error: 'Metro status unreachable', live: true };
   }
 }
 
 // ── Official alert feed ────────────────────────────────────
-// CSN seismology + SENAPRED emergency + Meteorología, aggregated
-// by the Worker into a single reverse-chronological feed.
-export async function fetchFeed() {
-  if (!workerReady()) {
-    return { items: [], error: null };
+// The Worker aggregates a city's official authorities into one
+// reverse-chronological feed, for the cities where that is wired.
+export async function fetchFeed(city) {
+  const live = Boolean(workerReady() && city.alerts?.live);
+  if (!live) {
+    return { items: [], error: null, live: false };
   }
   try {
-    const f = await workerPost('/feed', {});
-    return { items: f.items || [], error: null };
+    const f = await workerPost('/feed', city);
+    return { items: f.items || [], error: null, live: true };
   } catch {
-    return { items: [], error: 'Alert feed unreachable' };
+    return { items: [], error: 'Alert feed unreachable', live: true };
   }
 }

@@ -1,6 +1,6 @@
 # Radar
 
-> Santiago de Chile situation board — live earthquakes, weather, air quality, Metro status, and official alerts on one tactical board
+> Santiago de Chile situation board, switchable to Bogotá, Lima, Mexico City and Buenos Aires: live earthquakes, weather, air quality, metro status and official alerts on one tactical board
 
 - Live: https://radar.neorgon.com/
 - Part of the Neorgon tool suite (free, no signup, runs in your browser): https://neorgon.com/

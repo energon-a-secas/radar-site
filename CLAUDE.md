@@ -1,6 +1,6 @@
 # CLAUDE.md: Radar
 
-Radar: Santiago de Chile situation board; tactical war room for live earthquakes (USGS + CSN), 7-day weather + air quality (Open-Meteo), Metro line status, and official alert feed (CSN/SENAPRED/Meteorología). Modular ES modules + Cloudflare Worker proxy; runs keyless on USGS+Open-Meteo, Worker enriches (radar.neorgon.com)
+Radar: Santiago de Chile situation board, switchable to Bogotá, Lima, Mexico City and Buenos Aires; tactical war room for live earthquakes (USGS, plus CSN for Santiago), 7-day weather + air quality (Open-Meteo), metro line status, and official alert feed (CSN/SENAPRED/Meteorología for Santiago). Modular ES modules + Cloudflare Worker proxy; runs keyless on USGS+Open-Meteo for every city, Worker enriches Santiago (radar.neorgon.com)
 
 **Live:** radar.neorgon.com · **Port:** 8852
 
@@ -14,37 +14,43 @@ Then open http://localhost:8852. It must be served over HTTP. The app is ES modu
 
 ## Architecture
 
-| Module | Lines | Owns |
-|---|---:|---|
-| `js/quakes.js` | 540 | `filteredQuakes`, `quakes24h`, `strongest24h`, `lastFelt24h`, `renderQuakes` |
-| `js/weather.js` | 308 | `renderWeather` |
-| `js/api.js` | 186 | `fetchQuakes`, `fetchWeather`, `fetchAir`, `fetchTransport`, `fetchFeed` |
-| `js/config.js` | 154 | `SANTIAGO`, `WORKER_URL`, `workerReady`, `USGS_QUERY`, `WEATHER_URL` |
-| `js/events.js` | 144 | `bindEvents` |
-| `js/render.js` | 121 | `renderPosture`, `render`, `renderPanel`, `updateClock`, `updateSyncLabel` |
-| `js/utils.js` | 120 | `$`, `escHtml`, `showToast`, `timeAgo`, `santiagoTime` |
-| `js/transport.js` | 75 | `transportRank`, `disruptedCount`, `renderTransport` |
-| `js/sync.js` | 71 | `syncAll` |
-| `js/feed.js` | 68 | `renderFeed` |
-| `js/state.js` | 46 | `state`, `loadSaved`, `save` |
-| `js/app.js` | 17 | none |
+| Module | Owns |
+|---|---|
+| `js/config.js` | `CITIES` (the one place a city is defined), `DEFAULT_CITY`, `cityById`, `usgsQuery`, `weatherUrl`, `airUrl`, `cityImpact`, scales |
+| `js/state.js` | `state`, `activeCity`, `loadSaved` (`?city=` > saved pref > default), `setCity`, `save` |
+| `js/api.js` | `fetchQuakes`, `fetchWeather`, `fetchAir`, `fetchTransport`, `fetchFeed`; every fetcher takes the city |
+| `js/sync.js` | `syncAll`; one run per city, a superseded run drops its responses |
+| `js/render.js` | `renderPosture`, `renderCityChrome`, `render`, `renderPanel`, `updateClock`, `updateSyncLabel` |
+| `js/quakes.js` | `filteredQuakes`, `quakes24h`, `strongest24h`, `lastFelt24h`, `renderQuakes` |
+| `js/radar.js` | `renderRadar`, `syncSweepPhase` (the Dragon Radar, split out of quakes.js) |
+| `js/weather.js` | `renderWeather` |
+| `js/transport.js` | `transportRank`, `disruptedCount`, `renderTransport` (live / reference / no-metro modes) |
+| `js/feed.js` | `renderFeed` |
+| `js/events.js` | `bindEvents` (city selector, `C` cycles cities) |
+| `js/utils.js` | `$`, `escHtml`, `showToast`, `timeAgo`, `cityTime`, `fromCity`, `weekday`, `isToday` |
+| `js/app.js` | none |
 
-Vendored from `packages/neorgon-ui/`: never edit in place, run the sync script instead: `js/neorgon-footer.js`, `js/neorgon-header.js`.
+Vendored from `packages/neorgon-ui/`: never edit in place, run the sync script instead: `js/neorgon-footer.js`, `js/neorgon-header.js`, `js/neorgon-dom.js`.
 
 ## Data
 
-- `localStorage['radar-v1']`
-- `worker/`: Cloudflare Worker proxy; secrets are `wrangler secret` bindings, never literals
+- `localStorage['radar-v1']`: `{ prefs: { city, tempUnit, hourlyOpen }, minMag }`
+- `worker/`: Cloudflare Worker proxy; every endpoint takes `{ city }`; secrets are `wrangler secret` bindings, never literals
 
 ## Conventions
 
 - Zero build step. Plain ES modules loaded by `js/app.js`.
 - Header and footer come from the shared kits. Do not add site-local `.neo-footer` or `.header-bar` CSS.
-- The fleet guideline is ~500 lines per module; `js/quakes.js` is already past it. Split when touching it, do not grow it further.
+- The fleet guideline is ~500 lines per module; `js/quakes.js` was split into `quakes.js` + `radar.js` for it. Keep both under.
+- A city is one entry in `CITIES`. Nothing else may hard-code a coordinate, a time zone, a line list or an authority name; helpers read `activeCity()`.
 
 ## Gotchas
 
-TODO: the non-obvious failures. What broke here before, what looks wrong but is deliberate, what a reasonable change would break. This is the highest-value section, leave it empty rather than filling it with generic advice.
+- **The sweep keyframe needs both frames and a pinned start.** `@keyframes radar-spin` once had only `to { rotate(360deg) }`; the implicit `from` was the group's own inline `rotate(<bearing>)`, so the hand ran bearing-to-360 and snapped back every cycle. Both frames are now explicit off `--sweep-from`, and `syncSweepPhase()` sets every sweep animation's `startTime = 0` after the seismic panel is painted: a CSS animation otherwise starts at the element's first frame, which restarts the round on every 30 s repaint and, in a hidden tab, can be seconds after the markup was written. Do not reintroduce an inline `transform` on `.radar-sweep` or a build-time `animation-delay`.
+- **Open-Meteo times are requested as unix epochs** (`timeformat=unixtime`). The default ISO strings carry no offset and `new Date('2026-08-21T05:51')` parses in the browser's zone, which only matched while the board was Santiago-only; Bogotá's sunrise showed an hour early. Format epochs with `cityTime()`; never parse a naive local string.
+- **Switching city mid-sync.** `syncAll` keeps one run identity per city; a switch starts a new run and the old run's responses are dropped on arrival. Fetchers take the city as a parameter for the same reason: `api.js` must never read `activeCity()` itself.
+- **The Worker is only called for sources the city table marks live** (`localNetwork`, `transit.live`, `alerts.live`). The deployed Worker defaults a missing `city` to santiago and answers `supported: false` for cities without a handler, but the client guard is what keeps Bogotá from ever receiving Santiago's Metro board. Flipping a `live` flag without adding the matching Worker handler shows "unreachable" forever.
+- `?city=` overrides the saved city and is then persisted; the default city carries no parameter. An unknown id falls back to Santiago rather than a blank board.
 
 ## Do not touch
 
