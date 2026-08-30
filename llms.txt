@@ -4,6 +4,7 @@
 
 - Live: https://radar.neorgon.com/
 - Part of the Neorgon tool suite (free, no signup, runs in your browser): https://neorgon.com/
+- Keywords: earthquake, weather, air-quality, transit, chile
 
 ## More Neorgon tools
 
