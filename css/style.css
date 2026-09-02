@@ -713,6 +713,9 @@ body::before {
   font-variant-numeric: tabular-nums;
 }
 .header-bar.header-hidden + .posture { top: 0; }
+/* Same reseat when the NeoKeys H toggle removes the bar entirely; the kit
+   owns html[data-chrome] and its pre-paint guard can set it before load. */
+html[data-chrome="off"] .posture { top: 0; }
 .posture[data-level="nominal"]  .posture__badge { color: var(--ok);   background: color-mix(in srgb, var(--ok) 12%, transparent);   border-color: color-mix(in srgb, var(--ok) 35%, transparent); }
 .posture[data-level="elevated"] .posture__badge { color: var(--warn); background: color-mix(in srgb, var(--warn) 13%, transparent); border-color: color-mix(in srgb, var(--warn) 38%, transparent); }
 .posture[data-level="critical"] .posture__badge { color: var(--crit); background: color-mix(in srgb, var(--crit) 15%, transparent); border-color: color-mix(in srgb, var(--crit) 42%, transparent); }
