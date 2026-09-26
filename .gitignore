@@ -28,3 +28,7 @@ __pycache__/
 *.py[cod]
 skills-archived/
 *.log
+
+# ── Cloudflare Worker ────────────────────────────────────────────────────────
+# wrangler's local state and the Worker's dev secrets.
+.dev.vars*
